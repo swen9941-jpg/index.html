@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ExploreEnjoyFire Upload Portal</title>
+<title>ExploreEnjoyFire Music Portal</title>
 
 <style>
 body{
@@ -14,7 +14,7 @@ body{
   text-align:center;
 }
 .container{
-  max-width:600px;
+  max-width:650px;
   margin:auto;
   padding:40px 20px;
 }
@@ -27,9 +27,8 @@ button{
   font-size:16px;
   cursor:pointer;
 }
-audio{
-  width:100%;
-  margin-top:10px;
+input{
+  margin-top:15px;
 }
 .song{
   background:#111;
@@ -37,27 +36,37 @@ audio{
   border-radius:10px;
   margin-top:15px;
 }
+audio{
+  width:100%;
+  margin-top:10px;
+}
 </style>
 </head>
 <body>
 
 <div class="container">
-<h1>Upload Your Song 🎧</h1>
+<h1>Upload & Play Music 🎧</h1>
 
 <input type="file" id="fileInput" accept="audio/*">
-<br><br>
-<button onclick="uploadSong()">Upload</button>
+<br>
+<button id="uploadBtn">Upload Song</button>
 
 <h2>Music Library</h2>
 <div id="musicList"></div>
 </div>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"></script>
+<!-- Firebase Modern SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  listAll
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-<script>
-/* 🔥 PASTE YOUR FIREBASE CONFIG BELOW */
+/* 🔥 PASTE YOUR FIREBASE CONFIG HERE */
 const firebaseConfig = {
   apiKey: "PASTE",
   authDomain: "PASTE",
@@ -67,38 +76,48 @@ const firebaseConfig = {
   appId: "PASTE"
 };
 
-firebase.initializeApp(firebaseConfig);
-const storage = firebase.storage();
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
 
-function uploadSong(){
-  const file = document.getElementById("fileInput").files[0];
-  if(!file) return alert("Choose a song first");
+const fileInput = document.getElementById("fileInput");
+const uploadBtn = document.getElementById("uploadBtn");
+const musicList = document.getElementById("musicList");
 
-  const storageRef = storage.ref("songs/" + file.name);
+uploadBtn.addEventListener("click", async () => {
+  const file = fileInput.files[0];
 
-  storageRef.put(file).then(() => {
-    alert("Upload complete!");
-    loadSongs();
-  });
-}
+  if (!file) {
+    alert("Choose a song first");
+    return;
+  }
 
-function loadSongs(){
-  const list = document.getElementById("musicList");
-  list.innerHTML = "";
+  const storageRef = ref(storage, "songs/" + file.name);
 
-  const storageRef = storage.ref("songs/");
-  storageRef.listAll().then(res => {
-    res.items.forEach(item => {
-      item.getDownloadURL().then(url => {
-        const div = document.createElement("div");
-        div.className="song";
-        div.innerHTML = `
-          <p>${item.name}</p>
-          <audio controls src="${url}"></audio>
-        `;
-        list.appendChild(div);
-      });
-    });
+  await uploadBytes(storageRef, file);
+
+  alert("Upload complete!");
+  fileInput.value = "";
+  loadSongs();
+});
+
+async function loadSongs() {
+  musicList.innerHTML = "";
+
+  const listRef = ref(storage, "songs");
+  const res = await listAll(listRef);
+
+  res.items.forEach(async (itemRef) => {
+    const url = await getDownloadURL(itemRef);
+
+    const div = document.createElement("div");
+    div.className = "song";
+    div.innerHTML = `
+      <p>${itemRef.name}</p>
+      <audio controls>
+        <source src="${url}" type="audio/mpeg">
+      </audio>
+    `;
+    musicList.appendChild(div);
   });
 }
 
